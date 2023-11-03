@@ -1,6 +1,5 @@
 <script>
-import { mapState, mapActions } from 'pinia';
-import { usePlayerStore } from '@/stores/player';
+import { player } from '../stores/player';
 import IconPlay from './icons/IconPlay.vue';
 import IconPause from './icons/IconPause.vue';
 import IconNext from './icons/IconNext.vue';
@@ -11,6 +10,7 @@ export default {
     components: { IconPlay, IconPause, IconNext, IconPrev },
     data() {
         return {
+            player,
             time          : undefined,
             btn_prev      : undefined,
             btn_next      : undefined,
@@ -18,32 +18,30 @@ export default {
             audio_playback: undefined,
             audio_time    : 0,
             audio_length  : 0
+            
         };
     },
     unmounted() {
         clearInterval(this.audio_playback);
     },
     methods: {
-        ...mapActions(usePlayerStore, {
-            setNowPlaying  : "setNowPlaying",
-            resetNowPlaying: "resetNowPlaying",
-        }),
         playSong(preview) {
+
             this.is_playing      = true;
             this.$refs.audio.src = preview;
-
+            
             this.$refs.audio.play();
 
-            // Start interval
+            // Start interval 
             this.audio_playback = setInterval(() => {
                 this.audio_time   = Math.round(this.$refs.audio.currentTime);
                 this.audio_length = Math.round(this.$refs.audio.duration);
 
                 this.$refs.time.style.width = (this.audio_time * 100) / this.audio_length + '%';
 
-                if (this.audio_time === this.audio_length) {
-                    if (this.next_song) {
-                        return this.setNowPlaying(this.next_song);
+                if (this.audio_time == this.audio_length) {
+                    if (player.getNextSong()) {
+                        return player.setNowPlaying(player.getNextSong());
                     }
 
                     this.togglePlay();
@@ -51,8 +49,8 @@ export default {
                     this.is_playing = false;
                     this.$refs.time.style.width = 0;
 
-                    return this.resetNowPlaying();
-                }
+                    return player.resetNowPlaying();
+                } 
             }, 10)
         },
         togglePlay() {
@@ -65,21 +63,17 @@ export default {
         }
     },
     computed: {
-        ...mapState(usePlayerStore, {
-            now_playing           : "getNowPlaying",
-            now_playing_song_id   : "getNowPlayingSongId",
-            song_preview          : "getNowPlayingSongPreview",
-            now_playing_song_image: "getNowPlayingSongImage",
-            now_playing_song_name : "getNowPlayingSongName",
-            now_playing_artists   : "getNowPlayingArtists",
-            next_song             : "getNextSong",
-            previous_song         : "getPreviousSong",
-        }),
+        now_playing() {
+            return player.getNowPlaying();
+        },
+        song_preview() {
+            return player.getNowPlayingSongPreview();
+        },
         get_playback_time() {
-            return `0:${this.audio_time.toString().length === 1 ? `0${this.audio_time}` : this.audio_time}`
+            return `0:${this.audio_time.toString().length == 1 ? `0${this.audio_time}` : this.audio_time}`
         },
         get_audio_length() {
-            return `0:${this.audio_length.toString().length === 1 ? `0${this.audio_length}` : this.audio_length}`
+            return `0:${this.audio_length.toString().length == 1 ? `0${this.audio_length}` : this.audio_length}`
         }
     },
     watch: {
@@ -97,45 +91,37 @@ export default {
         </audio>
         <div id="controls">
             <div class="wrapper-song-info">
-                <img :src="now_playing_song_image" alt="" />
+                <img :src="player.getNowPlayingSongImage()" />
                 <div class="song-info">
-                    <p class="song-title">{{ now_playing_song_name }}</p>
-                    <p class="song-artists">{{ now_playing_artists }}</p>
+                    <p class="song-title">{{ player.getNowPlayingSongName() }}</p>
+                    <p class="song-artists">{{ player.getNowPlayingArtists() }}</p>
                 </div>
             </div>
             <div class="wrapper-playback-controls">
                 <div class="playback-controls">
 
                     <!-- PREVIOUS SONG BUTTON -->
-                    <button
-                        ref="prev"
+                    <button ref="prev" id="btn-prev"
                         class="prev"
-                        @click="setNowPlaying(previous_song)"
-                        :disabled="!previous_song"
-                    >
-                        <IconPrev color="#FFF" width="60%"/>
-                    </button>
+                        @click="player.setNowPlaying(this.player.getPreviousSong())"
+                        :disabled="!player.getPreviousSong()">
+                        <IconPrev color="#FFF" width="60%" /></button>
 
                     <!-- PLAY/PAUSE BUTTON -->
-                    <button
-                        ref="play"
+                    <button ref="play"
                         class="play"
                         @click="togglePlay()"
-                        :disabled="!now_playing_song_id"
-                    >
+                        :disabled="!player.getNowPlayingSongId()">
                         <IconPause v-if="is_playing" color="#FFF" width="60%" />
                         <IconPlay v-else color="#FFF" width="60%" />
                     </button>
 
                     <!-- NEXT SONG BUTTON -->
-                    <button
-                        ref="next"
-                        class="next"
-                        @click="setNowPlaying(next_song)"
-                        :disabled="!next_song"
-                    >
-                        <IconNext color="#FFF" width="60%"/>
-                    </button>
+                    <button ref="next"
+                    class="next"
+                    @click="player.setNowPlaying(player.getNextSong())"
+                    :disabled="!player.getNextSong()">
+                    <IconNext color="#FFF" width="60%" /></button>
                 </div>
                 <div class="wrapper-audio-track">
 
@@ -257,6 +243,15 @@ export default {
         .play {
             background-color: var(--c-primary);
             filter: drop-shadow(0px 4px 10px rgba(144, 64, 241, .1));
+        }
+
+        .next {
+            color: var(--c-primary);
+        }
+
+        .prev {
+            color: var(--c-primary);
+
         }
     }
 }
